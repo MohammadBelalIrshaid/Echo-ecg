@@ -1,0 +1,2 @@
+model,n_samples,accuracy,mcc,macro_precision,macro_recall,macro_f1,brier_score,auc_roc_macro_ovr,auc_pr_macro_ovr
+EchocardiographyQC-master,31,0.06451612903225806,0.0,0.1111111111111111,0.007168458781362007,0.01346801346801347,1.5144241056616132,,0.9999999999999999
