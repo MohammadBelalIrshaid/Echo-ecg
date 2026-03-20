@@ -52,14 +52,37 @@ def compute_classification_metrics(
         }
     )
 
+    present_mask = support > 0
+    if np.any(present_mask):
+        macro_precision_present = float(np.mean(p[present_mask]))
+        macro_recall_present = float(np.mean(r[present_mask]))
+        macro_f1_present = float(np.mean(f1[present_mask]))
+    else:
+        macro_precision_present = None
+        macro_recall_present = None
+        macro_f1_present = None
+
+    macro_precision_all = float(np.mean(p))
+    macro_recall_all = float(np.mean(r))
+    macro_f1_all = float(np.mean(f1))
+
     summary = {
         "n_samples": int(len(y_true)),
         "n_classes": int(len(class_order)),
+        "n_present_labels": int(np.sum(present_mask)),
         "accuracy": float(accuracy_score(y_true, y_pred)),
         "mcc": float(matthews_corrcoef(y_true, y_pred)),
-        "macro_precision": float(np.mean(p)),
-        "macro_recall": float(np.mean(r)),
-        "macro_f1": float(np.mean(f1)),
+        # Backward-compatible keys: strict averaging over full model label set.
+        "macro_precision": macro_precision_all,
+        "macro_recall": macro_recall_all,
+        "macro_f1": macro_f1_all,
+        # Explicitly labeled definitions.
+        "macro_precision_all_labels": macro_precision_all,
+        "macro_recall_all_labels": macro_recall_all,
+        "macro_f1_all_labels": macro_f1_all,
+        "macro_precision_present_labels": macro_precision_present,
+        "macro_recall_present_labels": macro_recall_present,
+        "macro_f1_present_labels": macro_f1_present,
         "brier_score": None,
         "auc_roc_macro_ovr": None,
         "auc_pr_macro_ovr": None,
@@ -138,11 +161,18 @@ def save_standard_outputs(
                 {
                     "dataset": ds_name,
                     "n_samples": ds_summary["n_samples"],
+                    "n_present_labels": ds_summary["n_present_labels"],
                     "accuracy": ds_summary["accuracy"],
                     "mcc": ds_summary["mcc"],
                     "macro_precision": ds_summary["macro_precision"],
                     "macro_recall": ds_summary["macro_recall"],
                     "macro_f1": ds_summary["macro_f1"],
+                    "macro_precision_all_labels": ds_summary["macro_precision_all_labels"],
+                    "macro_recall_all_labels": ds_summary["macro_recall_all_labels"],
+                    "macro_f1_all_labels": ds_summary["macro_f1_all_labels"],
+                    "macro_precision_present_labels": ds_summary["macro_precision_present_labels"],
+                    "macro_recall_present_labels": ds_summary["macro_recall_present_labels"],
+                    "macro_f1_present_labels": ds_summary["macro_f1_present_labels"],
                     "brier_score": ds_summary["brier_score"],
                     "auc_roc_macro_ovr": ds_summary["auc_roc_macro_ovr"],
                     "auc_pr_macro_ovr": ds_summary["auc_pr_macro_ovr"],
@@ -162,11 +192,18 @@ def save_standard_outputs(
                 {
                     "model": model_name,
                     "n_samples": metrics_summary["n_samples"],
+                    "n_present_labels": metrics_summary["n_present_labels"],
                     "accuracy": metrics_summary["accuracy"],
                     "mcc": metrics_summary["mcc"],
                     "macro_precision": metrics_summary["macro_precision"],
                     "macro_recall": metrics_summary["macro_recall"],
                     "macro_f1": metrics_summary["macro_f1"],
+                    "macro_precision_all_labels": metrics_summary["macro_precision_all_labels"],
+                    "macro_recall_all_labels": metrics_summary["macro_recall_all_labels"],
+                    "macro_f1_all_labels": metrics_summary["macro_f1_all_labels"],
+                    "macro_precision_present_labels": metrics_summary["macro_precision_present_labels"],
+                    "macro_recall_present_labels": metrics_summary["macro_recall_present_labels"],
+                    "macro_f1_present_labels": metrics_summary["macro_f1_present_labels"],
                     "brier_score": metrics_summary["brier_score"],
                     "auc_roc_macro_ovr": metrics_summary["auc_roc_macro_ovr"],
                     "auc_pr_macro_ovr": metrics_summary["auc_pr_macro_ovr"],

@@ -16,10 +16,16 @@ from validation_utils import compute_classification_metrics, save_standard_outpu
 
 PSAX_VARIANTS = {"Parasternal_Short", "Doppler_Parasternal_Short"}
 COLLAPSED_PSAX = "PSAX"
+EVALUATION_MODE = "simplified_view_only_first_frame"
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="External validation for EchoPrime view classification.")
+    p = argparse.ArgumentParser(
+        description=(
+            "External validation for EchoPrime view classification (simplified view-only mode, "
+            "not full EchoPrime report-generation pipeline)."
+        )
+    )
     p.add_argument(
         "--manifest",
         type=Path,
@@ -211,6 +217,12 @@ def main() -> None:
             class_order=class_order,
             probs=probs_arr,
         )
+        summary["evaluation_mode"] = EVALUATION_MODE
+        summary["full_echo_prime_pipeline"] = False
+        summary["caveat"] = (
+            "This script evaluates only EchoPrime view-classifier behavior on the first sampled frame; "
+            "it is not the full multi-video report-generation workflow."
+        )
         save_standard_outputs(
             args.output_dir,
             pred_df,
@@ -221,11 +233,18 @@ def main() -> None:
             probs=probs_arr,
             model_name="EchoPrime-main",
         )
+        (args.output_dir / "evaluation_mode.txt").write_text(
+            f"{EVALUATION_MODE}\n"
+            "Not full EchoPrime report-generation pipeline.\n",
+            encoding="utf-8",
+        )
 
         print("Done.")
         print(f"Samples: {len(pred_df)}")
         print(f"Accuracy: {summary['accuracy']:.4f}")
-        print(f"Macro-F1: {summary['macro_f1']:.4f}")
+        print(f"Macro-F1 (all labels): {summary['macro_f1_all_labels']:.4f}")
+        if summary["macro_f1_present_labels"] is not None:
+            print(f"Macro-F1 (present labels only): {summary['macro_f1_present_labels']:.4f}")
         print(f"MCC: {summary['mcc']:.4f}")
     finally:
         import os

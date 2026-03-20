@@ -37,6 +37,11 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         default=Path(__file__).resolve().parent / "external_validation_results",
     )
+    p.add_argument(
+        "--fail-on-incomplete",
+        action="store_true",
+        help="Fail if infer-results coverage is partial versus manifest-compatible samples.",
+    )
     return p.parse_args()
 
 
@@ -136,15 +141,51 @@ def main() -> None:
         overlap = manifest_uids & infer_uid_set
         manifest_examples = sorted(list(manifest_uids))[:8]
         infer_examples = sorted(list(infer_uid_set))[:8]
+        args.output_dir.mkdir(parents=True, exist_ok=True)
+        coverage = (
+            mdf.groupby("dataset")
+            .size()
+            .rename("n_expected")
+            .reset_index()
+            .assign(n_matched=0, coverage_ratio=0.0)
+        )
+        coverage.to_csv(args.output_dir / "dataset_coverage.csv", index=False)
         raise RuntimeError(
             "No matched predictions found.\n"
             "Ensure --infer-results contains conf.npy folders named with UIDs from processed_datasets/SourceImage.\n"
             f"Manifest UIDs: {len(manifest_uids)} | Infer UIDs: {len(infer_uid_set)} | Overlap: {len(overlap)}\n"
             f"Manifest UID examples: {manifest_examples}\n"
-            f"Infer UID examples: {infer_examples}"
+            f"Infer UID examples: {infer_examples}\n"
+            f"Saved expected-coverage table: {args.output_dir / 'dataset_coverage.csv'}"
         )
 
     pred_df = pd.DataFrame(rows)
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    expected_by_ds = mdf.groupby("dataset").size().rename("n_expected")
+    matched_by_ds = pred_df.groupby("dataset").size().rename("n_matched")
+    coverage = (
+        pd.concat([expected_by_ds, matched_by_ds], axis=1)
+        .fillna(0)
+        .astype({"n_expected": int, "n_matched": int})
+        .reset_index()
+    )
+    coverage["coverage_ratio"] = np.where(
+        coverage["n_expected"] > 0,
+        coverage["n_matched"] / coverage["n_expected"],
+        0.0,
+    )
+    coverage.to_csv(args.output_dir / "dataset_coverage.csv", index=False)
+    incomplete = coverage[coverage["n_matched"] < coverage["n_expected"]]
+    if not incomplete.empty:
+        msg = (
+            "Inference coverage is partial versus manifest-compatible samples.\n"
+            f"{incomplete[['dataset', 'n_expected', 'n_matched', 'coverage_ratio']].to_string(index=False)}\n"
+            f"Saved detailed coverage to: {args.output_dir / 'dataset_coverage.csv'}"
+        )
+        if args.fail_on_incomplete:
+            raise RuntimeError(msg)
+        print(f"WARNING: {msg}")
+
     probs = np.vstack(probs_list)
     summary, per_label, cm = compute_classification_metrics(
         y_true_labels=pred_df["true_label"].tolist(),
@@ -166,7 +207,9 @@ def main() -> None:
     print("Done.")
     print(f"Matched series: {len(pred_df)}")
     print(f"Accuracy: {summary['accuracy']:.4f}")
-    print(f"Macro-F1: {summary['macro_f1']:.4f}")
+    print(f"Macro-F1 (all labels): {summary['macro_f1_all_labels']:.4f}")
+    if summary["macro_f1_present_labels"] is not None:
+        print(f"Macro-F1 (present labels only): {summary['macro_f1_present_labels']:.4f}")
     print(f"MCC: {summary['mcc']:.4f}")
 
 

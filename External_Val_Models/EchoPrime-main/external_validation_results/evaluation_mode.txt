@@ -1,0 +1,2 @@
+simplified_view_only_first_frame
+Not full EchoPrime report-generation pipeline.

@@ -1,0 +1,2 @@
+dataset,sample_id,source_path,raw_label,canonical,reason
+echo-eg_MIMICEchoQA,98180638_0090,E:\Hourani\Echo-Ecg\Raw_Datasets\echo-eg\mimic-iv-echo-ext\mimic-iv-echo-ext-mimicechoqa-a-benchmark-dataset-for-echocardiogram-based-visual-question-answering-1.0.0\MIMICEchoQA\0.1\files\p11\p11838364\s98180638\98180638_0090.mp4,DOPPLER_SC_4C_IAS,None,no_model_mapping

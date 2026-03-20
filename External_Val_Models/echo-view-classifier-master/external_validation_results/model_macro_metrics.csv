@@ -1,2 +1,2 @@
-model,n_samples,accuracy,mcc,macro_precision,macro_recall,macro_f1,brier_score,auc_roc_macro_ovr,auc_pr_macro_ovr
-echo-view-classifier-master,2590,0.1972972972972973,0.1579561353666567,0.3824753646311471,0.42637512441993664,0.2573907384181584,1.2261788625369767,0.7539684148581551,0.3823948096855888
+model,n_samples,n_present_labels,accuracy,mcc,macro_precision,macro_recall,macro_f1,macro_precision_all_labels,macro_recall_all_labels,macro_f1_all_labels,macro_precision_present_labels,macro_recall_present_labels,macro_f1_present_labels,brier_score,auc_roc_macro_ovr,auc_pr_macro_ovr
+echo-view-classifier-master,2590,8,0.19613899613899613,0.1575840717537618,0.38556102768560396,0.4281421510475082,0.2581584889814476,0.38556102768560396,0.4281421510475082,0.2581584889814476,0.38556102768560396,0.4281421510475082,0.2581584889814476,1.2263424967873673,0.7524385966111736,0.38179643882993647

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import argparse
 import csv
+import hashlib
 import json
 import math
 import os
@@ -26,6 +28,7 @@ ECHO_PRIME_REPO = MODELS_ROOT / "EchoPrime-main"
 ECHO_VIEW_OUT = ECHO_VIEW_REPO / "processed_datasets"
 ECHO_QC_OUT = ECHO_QC_REPO / "processed_datasets" / "SourceImage"
 ECHO_PRIME_OUT = ECHO_PRIME_REPO / "processed_datasets"
+SAMPLE_DATASETS = ("CAMUS_public", "CardiacNet", "echo-eg_P10", "echo-eg_MIMICEchoQA")
 
 
 @dataclass
@@ -314,8 +317,14 @@ def collect_cardiacnet_samples() -> List[Sample]:
             continue
         if f.name.endswith("_label.nii"):
             continue
-        sample_id = f.stem
-        out.append(Sample("CardiacNet", sample_id, f, "nii", "A4C", "CardiacNet"))
+        # Use relative-path-based IDs to avoid collisions from repeated stems
+        # (e.g., many distinct files named PHI01.nii).
+        rel = f.relative_to(base).as_posix()
+        rel_no_ext = rel[:-4] if rel.lower().endswith(".nii") else rel
+        digest = hashlib.sha1(rel.encode("utf-8")).hexdigest()[:10]
+        sample_id = f"{slug(rel_no_ext)}__{digest}"
+        patient_id = slug(Path(rel_no_ext).parent.as_posix()) or "CardiacNet"
+        out.append(Sample("CardiacNet", sample_id, f, "nii", "A4C", patient_id))
     return out
 
 
@@ -371,20 +380,76 @@ def collect_echo_eg_mimicqa_samples() -> List[Sample]:
 
 
 def collect_all_samples() -> List[Sample]:
+    return collect_selected_samples(set(SAMPLE_DATASETS))
+
+
+def collect_selected_samples(selected: set[str]) -> List[Sample]:
     samples: List[Sample] = []
-    samples.extend(collect_camus_samples())
-    samples.extend(collect_cardiacnet_samples())
-    samples.extend(collect_echo_eg_p10_samples())
-    samples.extend(collect_echo_eg_mimicqa_samples())
+    if "CAMUS_public" in selected:
+        samples.extend(collect_camus_samples())
+    if "CardiacNet" in selected:
+        samples.extend(collect_cardiacnet_samples())
+    if "echo-eg_P10" in selected:
+        samples.extend(collect_echo_eg_p10_samples())
+    if "echo-eg_MIMICEchoQA" in selected:
+        samples.extend(collect_echo_eg_mimicqa_samples())
     return samples
 
 
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="Prepare external-validation datasets for all model repos.")
+    p.add_argument(
+        "--datasets",
+        type=str,
+        default=",".join(SAMPLE_DATASETS),
+        help=(
+            "Comma-separated sample datasets to regenerate. "
+            f"Allowed: {', '.join(SAMPLE_DATASETS)}"
+        ),
+    )
+    p.add_argument(
+        "--clean-selected",
+        action="store_true",
+        help="Delete processed outputs for selected datasets before regeneration.",
+    )
+    return p.parse_args()
+
+
+def parse_dataset_selection(raw: str) -> set[str]:
+    selected = {x.strip() for x in str(raw).split(",") if x.strip()}
+    invalid = sorted(selected - set(SAMPLE_DATASETS))
+    if invalid:
+        raise ValueError(
+            f"Unknown dataset selectors: {invalid}. Allowed: {list(SAMPLE_DATASETS)}"
+        )
+    return selected
+
+
+def clean_selected_outputs(selected: set[str]) -> None:
+    for ds in sorted(selected):
+        for p in [
+            ECHO_VIEW_OUT / ds,
+            ECHO_QC_OUT / ds,
+            ECHO_PRIME_OUT / ds,
+        ]:
+            if p.exists():
+                try:
+                    shutil.rmtree(p)
+                except Exception as e:
+                    print(f"Warning: could not fully remove {p}: {e}")
+
+
 def main() -> None:
+    args = parse_args()
+    selected_datasets = parse_dataset_selection(args.datasets)
+
     ensure_dir(ECHO_VIEW_OUT)
     ensure_dir(ECHO_QC_OUT)
     ensure_dir(ECHO_PRIME_OUT)
+    if args.clean_selected:
+        clean_selected_outputs(selected_datasets)
 
-    samples = collect_all_samples()
+    samples = collect_selected_samples(selected_datasets)
     print(f"Collected samples: {len(samples)}")
 
     ev_rows: List[Dict[str, str]] = []
@@ -514,21 +579,29 @@ def main() -> None:
                 }
             )
 
-    def write_manifest(path: Path, rows: List[Dict[str, str]]) -> None:
+    def upsert_manifest(path: Path, rows: List[Dict[str, str]], selected_ds: set[str]) -> None:
         ensure_dir(path.parent)
-        if not rows:
+        existing_rows: List[Dict[str, str]] = []
+        if path.exists() and path.stat().st_size > 0:
+            existing_df = pd.read_csv(path, dtype=str).fillna("")
+            if "dataset" in existing_df.columns:
+                existing_df = existing_df[~existing_df["dataset"].isin(selected_ds)]
+            existing_rows = existing_df.to_dict("records")
+
+        merged_rows = existing_rows + rows
+        if not merged_rows:
             path.write_text("", encoding="utf-8")
             return
-        fields = list(rows[0].keys())
+        fields = list(merged_rows[0].keys())
         with path.open("w", newline="", encoding="utf-8") as f:
             w = csv.DictWriter(f, fieldnames=fields)
             w.writeheader()
-            w.writerows(rows)
+            w.writerows(merged_rows)
 
-    write_manifest(ECHO_VIEW_OUT / "manifest.csv", ev_rows)
-    write_manifest(ECHO_QC_REPO / "processed_datasets" / "manifest.csv", qc_rows)
-    write_manifest(ECHO_PRIME_OUT / "manifest.csv", ep_rows)
-    write_manifest(ROOT / "processing_skipped_samples.csv", skipped_rows)
+    upsert_manifest(ECHO_VIEW_OUT / "manifest.csv", ev_rows, selected_datasets)
+    upsert_manifest(ECHO_QC_REPO / "processed_datasets" / "manifest.csv", qc_rows, selected_datasets)
+    upsert_manifest(ECHO_PRIME_OUT / "manifest.csv", ep_rows, selected_datasets)
+    upsert_manifest(ROOT / "processing_skipped_samples.csv", skipped_rows, selected_datasets)
 
     print("Done.")
     print(f"echo-view-classifier samples: {len(ev_rows)}")

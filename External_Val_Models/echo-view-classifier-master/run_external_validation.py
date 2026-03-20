@@ -181,7 +181,9 @@ def main() -> None:
     if skipped_image_rows:
         print(f"Samples skipped (read failure): {len(skipped_image_rows)}")
     print(f"Accuracy: {summary['accuracy']:.4f}")
-    print(f"Macro-F1: {summary['macro_f1']:.4f}")
+    print(f"Macro-F1 (all labels): {summary['macro_f1_all_labels']:.4f}")
+    if summary["macro_f1_present_labels"] is not None:
+        print(f"Macro-F1 (present labels only): {summary['macro_f1_present_labels']:.4f}")
     print(f"MCC: {summary['mcc']:.4f}")
 
 

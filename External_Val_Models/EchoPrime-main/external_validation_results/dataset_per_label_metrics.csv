@@ -11,7 +11,7 @@ CAMUS_public,SSN,0.0,0.0,0.0,0
 CAMUS_public,Subcostal,0.0,0.0,0.0,0
 CardiacNet,A2C,0.0,0.0,0.0,0
 CardiacNet,A3C,0.0,0.0,0.0,0
-CardiacNet,A4C,1.0,0.19658119658119658,0.32857142857142857,702
+CardiacNet,A4C,1.0,0.21448863636363635,0.3532163742690059,704
 CardiacNet,A5C,0.0,0.0,0.0,0
 CardiacNet,Apical_Doppler,0.0,0.0,0.0,0
 CardiacNet,Doppler_Parasternal_Long,0.0,0.0,0.0,0
