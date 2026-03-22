@@ -14,8 +14,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from validation_utils import collapse_plax_label, compute_classification_metrics, save_standard_outputs
 
 
-PSAX_VARIANTS = {"Parasternal_Short", "Doppler_Parasternal_Short"}
-COLLAPSED_PSAX = "PSAX"
 EVALUATION_MODE = "simplified_view_only_first_frame"
 
 
@@ -76,28 +74,6 @@ def load_view_only_runtime(repo_dir: Path, device_arg: str, class_count: int) ->
     for param in view_classifier.parameters():
         param.requires_grad = False
     return ViewOnlyRuntime(view_classifier=view_classifier, device=device)
-
-
-def collapse_label(label: str) -> str:
-    label = collapse_plax_label(label, canonical="PLAX")
-    if label in PSAX_VARIANTS:
-        return COLLAPSED_PSAX
-    return label
-
-
-def collapse_probabilities(probs: np.ndarray, class_order: list[str]) -> tuple[np.ndarray, list[str]]:
-    collapsed_order: list[str] = []
-    for cls in class_order:
-        ccls = collapse_label(cls)
-        if ccls not in collapsed_order:
-            collapsed_order.append(ccls)
-
-    collapsed_probs = np.zeros((probs.shape[0], len(collapsed_order)), dtype=np.float64)
-    idx_map = {cls: i for i, cls in enumerate(collapsed_order)}
-    for j, cls in enumerate(class_order):
-        collapsed_probs[:, idx_map[collapse_label(cls)]] += probs[:, j]
-    return collapsed_probs, collapsed_order
-
 
 def load_video_tensor(mp4_path: Path, ep, utils_module) -> torch.Tensor:
     cap = cv2.VideoCapture(str(mp4_path))
@@ -212,12 +188,12 @@ def main() -> None:
             raise RuntimeError("No predictions produced.")
 
         pred_df = pd.DataFrame(rows).reset_index(drop=True)
-        probs_arr_raw = np.vstack(probs_all)
-        probs_arr, class_order = collapse_probabilities(probs_arr_raw, raw_class_order)
+        probs_arr = np.vstack(probs_all)
+        class_order = raw_class_order
         pred_df["true_label_raw"] = pred_df["true_label"]
         pred_df["pred_label_raw"] = pred_df["pred_label"]
-        pred_df["true_label"] = pred_df["true_label_raw"].map(collapse_label)
-        pred_df["pred_label"] = pred_df["pred_label_raw"].map(collapse_label)
+        pred_df["true_label"] = pred_df["true_label_raw"]
+        pred_df["pred_label"] = pred_df["pred_label_raw"]
         pred_df["correct"] = (pred_df["true_label"] == pred_df["pred_label"]).astype(int)
         for j, cls in enumerate(class_order):
             pred_df[f"prob_{cls}"] = probs_arr[:, j]
