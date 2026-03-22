@@ -11,7 +11,7 @@ import torch
 import torchvision
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from validation_utils import compute_classification_metrics, save_standard_outputs
+from validation_utils import collapse_plax_label, compute_classification_metrics, save_standard_outputs
 
 
 PSAX_VARIANTS = {"Parasternal_Short", "Doppler_Parasternal_Short"}
@@ -79,6 +79,7 @@ def load_view_only_runtime(repo_dir: Path, device_arg: str, class_count: int) ->
 
 
 def collapse_label(label: str) -> str:
+    label = collapse_plax_label(label, canonical="PLAX")
     if label in PSAX_VARIANTS:
         return COLLAPSED_PSAX
     return label
@@ -153,6 +154,16 @@ def main() -> None:
         ep = load_view_only_runtime(repo_dir, args.device, len(raw_class_order))
 
         df = pd.read_csv(args.manifest)
+        df["model_label_raw"] = df["model_label"].astype(str)
+
+        def _normalize_manifest_label(label: str) -> str:
+            if label in raw_class_order:
+                return label
+            if collapse_plax_label(label, canonical="PLAX") == "PLAX":
+                return "Parasternal_Long"
+            return label
+
+        df["model_label"] = df["model_label_raw"].map(_normalize_manifest_label)
         df = df[df["model_label"].isin(raw_class_order)].copy()
         df = df[df["output_path"].apply(lambda x: Path(str(x)).exists())].reset_index(drop=True)
         if df.empty:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
@@ -19,6 +20,35 @@ from sklearn.metrics import (
     roc_curve,
 )
 from sklearn.preprocessing import label_binarize
+
+
+def normalize_view_label_text(label: str) -> str:
+    s = (label or "").strip()
+    if not s:
+        return ""
+    s = s.replace("-", "_").replace(" ", "_")
+    s = re.sub(r"[^A-Za-z0-9_]", "_", s)
+    s = re.sub(r"_+", "_", s).strip("_")
+    return s.upper()
+
+
+def is_plax_variant(label: str) -> bool:
+    norm = normalize_view_label_text(label)
+    if not norm:
+        return False
+    if norm in {"PARASTERNAL_LONG", "DOPPLER_PARASTERNAL_LONG"}:
+        return True
+    if norm == "PLAX":
+        return True
+    if norm.startswith("PLAX_") or norm.endswith("_PLAX") or "_PLAX_" in norm:
+        return True
+    return False
+
+
+def collapse_plax_label(label: str, canonical: str = "PLAX") -> str:
+    if is_plax_variant(label):
+        return canonical
+    return label
 
 
 def _nan_to_none(v):

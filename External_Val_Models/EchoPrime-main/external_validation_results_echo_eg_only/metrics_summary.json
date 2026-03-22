@@ -1,0 +1,22 @@
+{
+  "n_samples": 1007,
+  "n_classes": 9,
+  "n_present_labels": 9,
+  "accuracy": 0.8758689175769613,
+  "mcc": 0.8510247544584189,
+  "macro_precision": 0.7535426134329248,
+  "macro_recall": 0.7728784908009542,
+  "macro_f1": 0.7565954405527997,
+  "macro_precision_all_labels": 0.7535426134329248,
+  "macro_recall_all_labels": 0.7728784908009542,
+  "macro_f1_all_labels": 0.7565954405527997,
+  "macro_precision_present_labels": 0.7535426134329248,
+  "macro_recall_present_labels": 0.7728784908009542,
+  "macro_f1_present_labels": 0.7565954405527997,
+  "brier_score": 0.1978598646378113,
+  "auc_roc_macro_ovr": 0.9732064577189655,
+  "auc_pr_macro_ovr": 0.8168129939192342,
+  "evaluation_mode": "simplified_view_only_first_frame",
+  "full_echo_prime_pipeline": false,
+  "caveat": "This script evaluates only EchoPrime view-classifier behavior on the first sampled frame; it is not the full multi-video report-generation workflow."
+}

@@ -39,6 +39,7 @@ class Sample:
     source_type: str  # "nii" or "mp4"
     raw_label: str
     patient_id: str
+    p10_doppler_flag: bool = False
 
 
 def slug(text: str) -> str:
@@ -131,7 +132,7 @@ def echo_qc_label(canonical: Optional[str]) -> Optional[str]:
     return m.get(canonical)
 
 
-def echo_prime_label(raw_label: str, canonical: Optional[str]) -> Optional[str]:
+def echo_prime_label(raw_label: str, canonical: Optional[str], p10_doppler_flag: bool = False) -> Optional[str]:
     s = normalize_raw_label(raw_label)
     if s.startswith("DOPPLER_A"):
         return "Apical_Doppler"
@@ -139,6 +140,15 @@ def echo_prime_label(raw_label: str, canonical: Optional[str]) -> Optional[str]:
         return "Doppler_Parasternal_Long"
     if s.startswith("DOPPLER_PSAX"):
         return "Doppler_Parasternal_Short"
+
+    if p10_doppler_flag:
+        if canonical in {"A2C", "A3C", "A4C", "A5C"}:
+            return "Apical_Doppler"
+        if canonical == "PLAX":
+            return "Doppler_Parasternal_Long"
+        if canonical in {"PSAX", "PSAX_AV", "PSAX_MV", "PSAX_AP"}:
+            return "Doppler_Parasternal_Short"
+        # Keep SSN/Subcostal as non-doppler classes even when the flag is set.
 
     m = {
         "A2C": "A2C",
@@ -336,6 +346,17 @@ def collect_echo_eg_p10_samples() -> List[Sample]:
     for _, row in df.iterrows():
         file_id = str(row.iloc[0]).strip()
         raw_label = str(row.iloc[1]).strip()
+        c3 = row.iloc[2] if len(row) > 2 else None
+        doppler_flag = False
+        if pd.notna(c3):
+            if isinstance(c3, (int, float, np.integer, np.floating)):
+                doppler_flag = float(c3) == 1.0
+            else:
+                c3s = str(c3).strip()
+                try:
+                    doppler_flag = float(c3s) == 1.0
+                except ValueError:
+                    doppler_flag = c3s == "1"
         if not file_id or file_id.lower() == "nan":
             continue
         if normalize_raw_label(raw_label) in {"", "?", "NAN", "VIEW", "1"}:
@@ -343,7 +364,7 @@ def collect_echo_eg_p10_samples() -> List[Sample]:
         mp4 = p10_dir / f"{file_id}.mp4"
         if not mp4.exists():
             continue
-        out.append(Sample("echo-eg_P10", file_id, mp4, "mp4", raw_label, "P10_MP4"))
+        out.append(Sample("echo-eg_P10", file_id, mp4, "mp4", raw_label, "P10_MP4", p10_doppler_flag=doppler_flag))
     return out
 
 
@@ -464,7 +485,7 @@ def main() -> None:
         canonical = canonical_view(s.raw_label)
         ev_label = echo_view_label(canonical)
         qc_label = echo_qc_label(canonical)
-        ep_label = echo_prime_label(s.raw_label, canonical)
+        ep_label = echo_prime_label(s.raw_label, canonical, p10_doppler_flag=s.p10_doppler_flag)
 
         # echo-view-classifier is not trained on SSN/Subcostal.
         if s.dataset.startswith("echo-eg") and canonical in {"SSN", "SUBCOSTAL"}:

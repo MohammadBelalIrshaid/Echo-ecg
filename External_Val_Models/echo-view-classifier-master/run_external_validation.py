@@ -11,7 +11,7 @@ import pandas as pd
 from tensorflow.keras.models import load_model
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from validation_utils import compute_classification_metrics, save_standard_outputs
+from validation_utils import collapse_plax_label, compute_classification_metrics, save_standard_outputs
 
 
 CLASS_ORDER = ["plax", "psax-av", "psax-mv", "psax-ap", "a4c", "a5c", "a3c", "a2c"]
@@ -43,6 +43,8 @@ def load_eval_data(manifest_path: Path) -> pd.DataFrame:
     if not manifest_path.exists():
         raise FileNotFoundError(f"Manifest not found: {manifest_path}")
     df = pd.read_csv(manifest_path)
+    df["model_label_raw"] = df["model_label"].astype(str)
+    df["model_label"] = df["model_label_raw"].map(lambda x: collapse_plax_label(x, canonical="plax"))
     df = df[df["model_label"].isin(CLASS_ORDER)].copy()
     df = df[df["output_path"].apply(lambda x: Path(str(x)).exists())].copy()
     if df.empty:
@@ -145,14 +147,26 @@ def main() -> None:
     kept_df = pd.concat(kept_chunks, axis=0, ignore_index=True)
     probs = np.vstack(probs_chunks)
     pred_idx = np.argmax(probs, axis=1)
-    pred_labels = [CLASS_ORDER[i] for i in pred_idx]
+    pred_labels_raw = [CLASS_ORDER[i] for i in pred_idx]
+    pred_labels = [collapse_plax_label(x, canonical="plax") for x in pred_labels_raw]
     true_labels = kept_df["model_label"].tolist()
 
     predictions_df = kept_df[
-        ["dataset", "sample_id", "source_path", "raw_label", "canonical", "model_label", "output_path"]
+        [
+            "dataset",
+            "sample_id",
+            "source_path",
+            "raw_label",
+            "canonical",
+            "model_label",
+            "model_label_raw",
+            "output_path",
+        ]
     ].copy()
     predictions_df = predictions_df.rename(columns={"model_label": "true_label"})
+    predictions_df = predictions_df.rename(columns={"model_label_raw": "true_label_raw"})
     predictions_df["pred_label"] = pred_labels
+    predictions_df["pred_label_raw"] = pred_labels_raw
     predictions_df["correct"] = (predictions_df["true_label"] == predictions_df["pred_label"]).astype(int)
     for i, cls in enumerate(CLASS_ORDER):
         predictions_df[f"prob_{cls}"] = probs[:, i]

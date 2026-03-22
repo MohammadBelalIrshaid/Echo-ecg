@@ -1,2 +1,0 @@
-model,n_samples,n_present_labels,accuracy,mcc,macro_precision,macro_recall,macro_f1,macro_precision_all_labels,macro_recall_all_labels,macro_f1_all_labels,macro_precision_present_labels,macro_recall_present_labels,macro_f1_present_labels,brier_score,auc_roc_macro_ovr,auc_pr_macro_ovr
-EchoPrime-main,2711,10,0.38952416082626334,0.29217788064106276,0.3651310475792683,0.6088315775415927,0.34799469835142804,0.3651310475792683,0.6088315775415927,0.34799469835142804,0.3651310475792683,0.6088315775415927,0.34799469835142804,0.9697075707433855,0.8345249647863904,0.5161888521565787
