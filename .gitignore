@@ -3,6 +3,7 @@ processed_datasets
 inferResults
 *.exe
 *.h5
+FSL_External_Validation/model/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
